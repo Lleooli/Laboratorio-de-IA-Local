@@ -817,7 +817,7 @@ def main():
     print("Gerando relatório... ", end="", flush=True)
     relatorio = gerar_relatorio(resultados, modelo)
 
-    caminho_relatorio = "relatorio_semanas_1_2.md"
+    caminho_relatorio = "relatorio_semanas_1_2_Leonardo.md"
     with open(caminho_relatorio, "w", encoding="utf-8") as f:
         f.write(relatorio)
     print(f"OK -> {caminho_relatorio}")
