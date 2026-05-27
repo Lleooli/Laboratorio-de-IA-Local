@@ -826,6 +826,134 @@ def executar_exploit(codigo: str, nome_arquivo: str) -> str:
 
 
 # ============================================================================
+# SERIALIZAÇÃO JSON DOS RESULTADOS BRUTOS
+# ============================================================================
+
+def _sanitizar_para_json(obj):
+    """
+    Converte recursivamente objetos não serializáveis:
+    - sets → lists
+    - objetos sem __dict__ → str
+    """
+    if isinstance(obj, dict):
+        return {k: _sanitizar_para_json(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_sanitizar_para_json(i) for i in obj]
+    if isinstance(obj, set):
+        return sorted(_sanitizar_para_json(i) for i in obj)
+    if isinstance(obj, (str, int, float, bool)) or obj is None:
+        return obj
+    return str(obj)
+
+
+def salvar_json(
+    recon: dict,
+    resultados_vulns: list[dict],
+    log_montagem: dict,
+    exploit_codigo: str,
+    exploit_saida: str,
+    caminho: str,
+) -> None:
+    """
+    Persiste todos os dados da execução em um arquivo JSON estruturado.
+    Inclui recon, cada tentativa com prompt/resposta/validação, log de
+    montagem, exploit gerado e saída da execução.
+    Útil para reprocessar classificações ou comparar execuções sem
+    precisar chamar a API novamente.
+    """
+    payload = {
+        "meta": {
+            "timestamp":    datetime.now().isoformat(),
+            "modelo_claude": CLAUDE_MODEL,
+            "api_base":     API_BASE,
+            "enquadramentos": ENQUADRAMENTOS,
+        },
+        "reconhecimento": {
+            "token_user_obtido":  bool(recon.get("token_user")),
+            "token_admin_obtido": bool(recon.get("token_admin")),
+            "users_acessiveis":   recon.get("users_acessiveis", []),
+            "users_inacessiveis": recon.get("users_inacessiveis", []),
+            "docs_acessiveis":    recon.get("docs_acessiveis", []),
+            "docs_inacessiveis":  recon.get("docs_inacessiveis", []),
+            "bola_users":         recon.get("bola_users", False),
+            "bola_docs":          recon.get("bola_docs", False),
+        },
+        "vulnerabilidades": [],
+        "montagem":   _sanitizar_para_json(log_montagem),
+        "exploit": {
+            "codigo": exploit_codigo,
+            "saida":  exploit_saida,
+        },
+        "estatisticas": {},
+    }
+
+    # Serializa cada vulnerabilidade e todas as suas tentativas
+    for v in resultados_vulns:
+        entrada_vuln = {
+            "nome":          v["nome"],
+            "endpoint":      v["endpoint"],
+            "status_final":  v["status_final"],
+            "combinacao_ok": v.get("combinacao_ok"),
+            "tentativas":    [],
+        }
+
+        for t in v["todas_tentativas"]:
+            entrada_tent = {
+                "combinacao":    t["combinacao"],
+                "enquadramento": t["enquadramento"],
+                "parte":         t["parte"],
+                "classificacao": t["classificacao"],
+                "score_max":     t.get("score_max", 0),
+                "tempo_s":       t["tempo_s"],
+                "prompt":        t["prompt"],
+                "resposta":      t["resposta"],
+                "fragmentos_extraidos": t.get("fragmentos_extraidos", []),
+                "fragmentos_completos": t.get("fragmentos_completos", []),
+                "validacoes": [
+                    {
+                        "parte":               val.get("parte"),
+                        "funcao_esperada":     val.get("funcao_esperada"),
+                        "funcao_presente":     val.get("funcao_presente"),
+                        "e_stub":              val.get("e_stub"),
+                        "keywords_faltando":   val.get("keywords_faltando", []),
+                        "score":               val.get("score", 0),
+                        "completo":            val.get("completo"),
+                        "motivo":              val.get("motivo", ""),
+                    }
+                    for val in t.get("validacoes", [])
+                ],
+            }
+            entrada_vuln["tentativas"].append(entrada_tent)
+
+        payload["vulnerabilidades"].append(entrada_vuln)
+
+    # Estatísticas globais
+    todas = [t for v in resultados_vulns for t in v["todas_tentativas"]]
+    payload["estatisticas"] = {
+        "total_prompts":   len(todas),
+        "por_classificacao": {
+            c: sum(1 for t in todas if t["classificacao"] == c)
+            for c in ["COMPLIANCE", "PARCIAL", "RECUSOU", "INCOMPLETO", "STUB", "AMBÍGUO", "ERRO"]
+        },
+        "por_enquadramento": {
+            enq: {
+                "prompts":    sum(1 for t in todas if t["enquadramento"] == enq),
+                "compliance": sum(1 for t in todas if t["enquadramento"] == enq and t["classificacao"] == "COMPLIANCE"),
+                "recusou":    sum(1 for t in todas if t["enquadramento"] == enq and t["classificacao"] == "RECUSOU"),
+            }
+            for enq in ENQUADRAMENTOS
+        },
+        "vulns_compliance": sum(1 for v in resultados_vulns if v["status_final"] == "COMPLIANCE"),
+        "vulns_bloqueadas": sum(1 for v in resultados_vulns if v["status_final"] == "BLOQUEADO"),
+        "tempo_total_s":    round(sum(t["tempo_s"] for t in todas), 2),
+    }
+
+    os.makedirs(os.path.dirname(caminho), exist_ok=True)
+    with open(caminho, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+
+
+# ============================================================================
 # RELATÓRIO COMPLETO
 # ============================================================================
 
@@ -1085,6 +1213,11 @@ def main():
     with open(caminho_rel, "w", encoding="utf-8") as f:
         f.write(gerar_relatorio(recon, resultados_vulns, exploit_codigo, saida_exec, log_montagem))
     print(f"[OK] Relatório salvo: {caminho_rel}")
+
+    print("[JSON] Salvando resultados brutos...")
+    caminho_json = os.path.join(REPORT_DIR, f"resultados_brutos_{ts}.json")
+    salvar_json(recon, resultados_vulns, log_montagem, exploit_codigo, saida_exec, caminho_json)
+    print(f"[OK] JSON salvo: {caminho_json}")
 
     print("\n" + "=" * 70)
     print("  RESUMO FINAL")
