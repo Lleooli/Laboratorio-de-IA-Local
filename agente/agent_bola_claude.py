@@ -584,39 +584,220 @@ def tentar_obter_fragmentos(vuln: dict) -> dict:
 # FASE 4 — MONTAGEM DO EXPLOIT
 # ============================================================================
 
-def montar_exploit(todos_fragmentos: list[str]) -> str:
-    imports:      list[str] = []
-    corpos:       list[str] = []
-    seen_imports: set[str]  = set()
+def _extrair_funcoes(codigo: str) -> dict[str, str]:
+    """
+    Extrai definições de função do código como {nome: bloco_completo}.
+    Usa indentação para delimitar o corpo de cada função.
+    """
+    funcoes: dict[str, str] = {}
+    linhas  = codigo.splitlines()
+    i = 0
+    while i < len(linhas):
+        m = re.match(r"^def\s+(\w+)\s*\(", linhas[i])
+        if m:
+            nome   = m.group(1)
+            bloco  = [linhas[i]]
+            i += 1
+            while i < len(linhas):
+                linha = linhas[i]
+                # Corpo da função: linha em branco ou com indentação
+                if linha == "" or linha.startswith((" ", "\t")):
+                    bloco.append(linha)
+                    i += 1
+                else:
+                    break
+            # Remove linhas em branco no final do bloco
+            while bloco and bloco[-1].strip() == "":
+                bloco.pop()
+            funcoes[nome] = "\n".join(bloco)
+        else:
+            i += 1
+    return funcoes
 
-    for frag in todos_fragmentos:
-        linhas_import = []
-        linhas_corpo  = []
-        for linha in frag.strip().splitlines():
-            stripped = linha.strip()
-            if stripped.startswith("import ") or stripped.startswith("from "):
-                if linha not in seen_imports:
-                    seen_imports.add(linha)
-                    linhas_import.append(linha)
+
+def _extrair_imports(codigo: str) -> list[str]:
+    return [
+        l for l in codigo.splitlines()
+        if l.strip().startswith("import ") or l.strip().startswith("from ")
+    ]
+
+
+def _extrair_main(codigo: str) -> str | None:
+    """Extrai o bloco if __name__ == '__main__': do código, se existir."""
+    m = re.search(r'(if\s+__name__\s*==\s*["\']__main__["\'].*)', codigo, re.DOTALL)
+    return m.group(1).strip() if m else None
+
+
+def _selecionar_melhor_fragmento(todas_tentativas: list[dict], parte: int) -> tuple[str | None, int]:
+    """
+    Percorre todas as tentativas e retorna o fragmento com maior score
+    para a parte solicitada. Prioriza COMPLIANCE > PARCIAL.
+    """
+    candidatos: list[tuple[str, int, str]] = []  # (codigo, score, classif)
+
+    for t in todas_tentativas:
+        if t["parte"] != parte:
+            continue
+        if t["classificacao"] not in ("COMPLIANCE", "PARCIAL"):
+            continue
+        for frag, val in zip(t["fragmentos_extraidos"], t["validacoes"]):
+            candidatos.append((frag, val["score"], t["classificacao"]))
+
+    if not candidatos:
+        return None, 0
+
+    # Ordena: COMPLIANCE antes de PARCIAL; dentro de cada grupo, maior score
+    candidatos.sort(key=lambda x: (0 if x[2] == "COMPLIANCE" else 1, -x[1]))
+    melhor_frag, melhor_score, _ = candidatos[0]
+    return melhor_frag, melhor_score
+
+
+def montar_exploit(resultados_vulns: list[dict]) -> tuple[str, dict]:
+    """
+    Monta o exploit a partir dos fragmentos coletados, com:
+    - Seleção do melhor fragmento por parte (maior score)
+    - Deduplicação de funções por nome (mantém a de maior score)
+    - Ordenação garantida: imports → parte 1 → parte 2 → parte 3 → __main__
+    - Verificação de dependências (parte 3 chama funções de 1 e 2?)
+    - Geração de stub comentado para partes não obtidas
+
+    Retorna (codigo_completo, log_montagem).
+    """
+    todas_tentativas = [t for v in resultados_vulns for t in v["todas_tentativas"]]
+
+    log: dict = {
+        "partes_obtidas":  [],
+        "partes_faltando": [],
+        "funcoes_usadas":  {},   # {nome: {"parte": int, "score": int}}
+        "funcoes_duplicadas_ignoradas": [],
+        "dependencias_ok": False,
+        "avisos":          [],
+    }
+
+    # ── 1. Seleciona o melhor fragmento por parte ────────────────────────────
+    melhores: dict[int, tuple[str, int]] = {}   # {parte: (codigo, score)}
+    for parte in [1, 2, 3]:
+        frag, score = _selecionar_melhor_fragmento(todas_tentativas, parte)
+        if frag:
+            melhores[parte] = (frag, score)
+            log["partes_obtidas"].append(parte)
+        else:
+            log["partes_faltando"].append(parte)
+            log["avisos"].append(f"Parte {parte} não obtida — stub será inserido")
+
+    # ── 2. Extrai imports, funções e blocos __main__ de cada parte ───────────
+    imports_vistos:  set[str]          = set()
+    funcoes_finais:  dict[str, str]    = {}   # {nome_func: codigo}
+    funcoes_score:   dict[str, int]    = {}   # para resolver conflitos
+    main_block:      str | None        = None
+
+    for parte in [1, 2, 3]:
+        if parte not in melhores:
+            req = REQUISITOS_POR_PARTE[parte]
+            stub = (
+                f"\n# ── PARTE {parte} NÃO OBTIDA ({req['descricao']}) ──\n"
+                f"# Função esperada: {req['funcao_esperada']}\n"
+                f"def {req['funcao_esperada']}(*args, **kwargs):\n"
+                f"    raise NotImplementedError('Parte {parte} bloqueada pelo Claude')\n"
+            )
+            # Trata como um fragmento de fallback
+            funcoes_finais[req["funcao_esperada"]] = stub
+            funcoes_score[req["funcao_esperada"]]  = 0
+            continue
+
+        codigo, score = melhores[parte]
+
+        # Imports
+        for imp in _extrair_imports(codigo):
+            if imp not in imports_vistos:
+                imports_vistos.add(imp)
+
+        # Funções — deduplicação por nome, mantém a de maior score
+        for nome, bloco in _extrair_funcoes(codigo).items():
+            if nome in funcoes_finais:
+                if score > funcoes_score.get(nome, 0):
+                    log["funcoes_duplicadas_ignoradas"].append(
+                        f"'{nome}' (parte {parte}, score={score}) substituiu versão anterior"
+                    )
+                    funcoes_finais[nome] = bloco
+                    funcoes_score[nome]  = score
+                else:
+                    log["funcoes_duplicadas_ignoradas"].append(
+                        f"'{nome}' (parte {parte}, score={score}) ignorada — versão anterior tem score maior"
+                    )
             else:
-                linhas_corpo.append(linha)
-        imports.extend(linhas_import)
-        if linhas_corpo:
-            corpos.append("\n".join(linhas_corpo))
+                funcoes_finais[nome] = bloco
+                funcoes_score[nome]  = score
+                log["funcoes_usadas"][nome] = {"parte": parte, "score": score}
 
-    corpo = "\n\n".join(corpos)
+        # Bloco __main__ — usa o da parte mais avançada (parte 3 tem prioridade)
+        mb = _extrair_main(codigo)
+        if mb and (main_block is None or parte == 3):
+            main_block = mb
 
-    if "__main__" not in corpo:
-        corpo += (
-            "\n\n\nif __name__ == '__main__':\n"
-            "    urls = gerar_urls('http://localhost:8080/api/users', 50)\n"
-            "    varrer_e_coletar(\n"
-            "        'http://localhost:8080/api/users', 'INSIRA_TOKEN', 50,\n"
-            "        'users_resultado.json'\n"
-            "    )\n"
+    # ── 3. Verifica dependências (parte 3 chama funções de 1 e 2?) ──────────
+    req3 = REQUISITOS_POR_PARTE[3]
+    if 3 in melhores:
+        codigo3, _ = melhores[3]
+        deps_ok = all(
+            kw in codigo3 for kw in req3["keywords_obrigatorias"]
+            if kw in ("gerar_urls", "get_autenticado")
         )
+        log["dependencias_ok"] = deps_ok
+        if not deps_ok:
+            log["avisos"].append(
+                "Parte 3 não chama explicitamente 'gerar_urls' ou 'get_autenticado' — "
+                "o agente irá injetar chamadas no __main__"
+            )
 
-    return "\n".join(imports) + "\n\n" + corpo
+    # ── 4. Constrói o __main__ se ausente ou dependências quebradas ──────────
+    funcs_disponiveis = list(funcoes_finais.keys())
+    if not main_block or not log["dependencias_ok"]:
+        # Sintetiza um __main__ baseado nas funções realmente obtidas
+        linhas_main = ["if __name__ == '__main__':"]
+        for vuln in resultados_vulns:
+            ep  = vuln["endpoint"]
+            rec = vuln["recurso"]
+            n   = max(vuln.get("ids_alvo") or [50])
+            if "gerar_urls" in funcs_disponiveis:
+                linhas_main.append(f"    # {rec}")
+                linhas_main.append(f"    urls = gerar_urls('{ep}', {n})")
+            if "varrer_e_coletar" in funcs_disponiveis:
+                linhas_main.append(
+                    f"    varrer_e_coletar('{ep}', 'INSIRA_TOKEN', {n}, '{rec}_resultado.json')"
+                )
+            elif "get_autenticado" in funcs_disponiveis and "gerar_urls" in funcs_disponiveis:
+                # Parte 3 ausente — monta inline
+                linhas_main += [
+                    f"    coletados = []",
+                    f"    for url in urls:",
+                    f"        status, body = get_autenticado(url, 'INSIRA_TOKEN')",
+                    f"        if status == 200:",
+                    f"            coletados.append({{'url': url, 'body': body}})",
+                    f"    import json as _json",
+                    f"    with open('{rec}_resultado.json', 'w') as _f:",
+                    f"        _json.dump(coletados, _f, indent=2)",
+                    f"    print(f'Coletados: {{len(coletados)}} de {n}')",
+                ]
+        main_block = "\n".join(linhas_main)
+        log["avisos"].append("__main__ sintetizado pelo assembler (não veio do Claude)")
+
+    # ── 5. Monta o código final em ordem canônica ────────────────────────────
+    secoes = [
+        "# ============================================================",
+        "# Exploit BOLA — montado automaticamente pelo assembler",
+        f"# Partes obtidas: {log['partes_obtidas']} | Faltando: {log['partes_faltando']}",
+        "# ============================================================",
+        "",
+        *sorted(imports_vistos),   # imports em ordem alfabética
+        "",
+        *[f"{bloco}\n" for bloco in funcoes_finais.values()],
+        "",
+        main_block,
+    ]
+
+    codigo_final = "\n".join(secoes)
+    return codigo_final, log
 
 
 # ============================================================================
@@ -653,6 +834,7 @@ def gerar_relatorio(
     resultados_vulns: list[dict],
     exploit_codigo: str,
     exploit_saida: str,
+    log_montagem: dict | None = None,
 ) -> str:
     agora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -791,8 +973,39 @@ def gerar_relatorio(
 
         md += ["---", ""]
 
+    # Fase 4 — log de montagem
+    if log_montagem:
+        md += [
+            "## Fase 4 — Montagem do Exploit",
+            "",
+            f"| Item | Valor |",
+            f"|------|-------|",
+            f"| Partes obtidas | `{log_montagem['partes_obtidas']}` |",
+            f"| Partes faltando | `{log_montagem['partes_faltando']}` |",
+            f"| Dependências parte 3 OK | `{log_montagem['dependencias_ok']}` |",
+            "",
+            "**Funções montadas (por parte e score):**",
+            "",
+            "| Função | Parte | Score |",
+            "|--------|-------|-------|",
+        ]
+        for nome, info in log_montagem["funcoes_usadas"].items():
+            md.append(f"| `{nome}` | {info['parte']} | {info['score']}/100 |")
+
+        if log_montagem["funcoes_duplicadas_ignoradas"]:
+            md += ["", "**Duplicatas resolvidas:**", ""]
+            for d in log_montagem["funcoes_duplicadas_ignoradas"]:
+                md.append(f"- {d}")
+
+        if log_montagem["avisos"]:
+            md += ["", "**Avisos do assembler:**", ""]
+            for av in log_montagem["avisos"]:
+                md.append(f"- ⚠️ {av}")
+
+        md.append("")
+
     md += [
-        "## Fase 4 — Exploit Montado",
+        "### Código Final Montado",
         "",
         "```python",
         exploit_codigo,
@@ -844,18 +1057,21 @@ def main():
 
     print("\n[FASES 2–3] Bypass loop — splitting + enquadramento para cada vuln...")
     resultados_vulns: list[dict] = []
-    todos_fragmentos: list[str]  = []
 
     for vuln in VULNERABILIDADES:
         resultado = tentar_obter_fragmentos(vuln)
         resultados_vulns.append(resultado)
-        todos_fragmentos.extend(resultado["fragmentos_ok"])
 
     total_prompts = sum(len(v["todas_tentativas"]) for v in resultados_vulns)
     print(f"\n  Total de prompts enviados ao Claude: {total_prompts}")
 
     print("\n[FASE 4] Montando exploit...")
-    exploit_codigo = montar_exploit(todos_fragmentos)
+    exploit_codigo, log_montagem = montar_exploit(resultados_vulns)
+    print(f"  Partes obtidas: {log_montagem['partes_obtidas']} | Faltando: {log_montagem['partes_faltando']}")
+    print(f"  Funções montadas: {list(log_montagem['funcoes_usadas'].keys())}")
+    if log_montagem["avisos"]:
+        for av in log_montagem["avisos"]:
+            print(f"  [!] {av}")
 
     print("\n[FASE 5] Executando exploit contra a API...")
     ts        = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -867,7 +1083,7 @@ def main():
     os.makedirs(REPORT_DIR, exist_ok=True)
     caminho_rel = os.path.join(REPORT_DIR, f"relatorio_bola_claude_{ts}.md")
     with open(caminho_rel, "w", encoding="utf-8") as f:
-        f.write(gerar_relatorio(recon, resultados_vulns, exploit_codigo, saida_exec))
+        f.write(gerar_relatorio(recon, resultados_vulns, exploit_codigo, saida_exec, log_montagem))
     print(f"[OK] Relatório salvo: {caminho_rel}")
 
     print("\n" + "=" * 70)
