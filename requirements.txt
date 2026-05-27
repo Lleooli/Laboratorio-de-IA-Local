@@ -1,0 +1,13 @@
+# Framework de Agentes e Modelos de IA
+agno==1.0.0
+groq==0.15.0
+
+# Comunicação HTTP (APIs e Ollama local)
+requests==2.32.3
+
+# Gestão de Variáveis de Ambiente
+python-dotenv==1.0.1
+
+# Bibliotecas utilizadas nos payloads e testes de segurança gerados
+PyJWT==2.10.1
+cryptography==44.0.0
