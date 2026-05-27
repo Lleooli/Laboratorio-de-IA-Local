@@ -358,7 +358,7 @@ def main():
 
     resultados = executar_lab(modelo)
     
-    caminho_relatorio = "relatorio_api_bola.md"
+    caminho_relatorio = "../../relatórios/relatorio_api_bola.md"
     with open(caminho_relatorio, "w", encoding="utf-8") as f:
         f.write(gerar_relatorio_markdown(resultados, modelo))
         
