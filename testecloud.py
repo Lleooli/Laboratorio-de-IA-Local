@@ -39,11 +39,18 @@ except ImportError:
 # CONFIGURAÇÃO
 # ============================================================================
 
-OLLAMA_URL = "http://localhost:11434"
-GENERATE_ENDPOINT = f"{OLLAMA_URL}/api/generate"
-TAGS_ENDPOINT = f"{OLLAMA_URL}/api/tags"
-DEFAULT_MODEL = "gemma4:e4b"
+API_URL_BASE = "https://llmlab.gabrielbellagamba.online/api"
+# GERA TUA CHAVE DE API E COLA AQUI PARA TEU USER !
+# NAO SEI SE VAI FUNCIONAR GLOBAL PRA TODOS OU E POR USER!
+# AQUI TEM A DOC : https://docs.openwebui.com/features/authentication-access/api-keys/
+API_KEY = "sk-44c2f893d92841ad9676669517a6d110"
+DEFAULT_MODEL = "llama3.1:8b" # Confirme se o nome é este mesmo no painel
 DELAY_ENTRE_REQUESTS = 2  # segundos
+
+HEADERS = {
+    "Authorization": f"Bearer {API_KEY}",
+    "Content-Type": "application/json"
+}
 
 # ============================================================================
 # DEFINIÇÃO DOS PROMPTS (Foco BOLA/IDOR)
@@ -279,43 +286,64 @@ def classificar_resposta(resposta: str) -> str:
 # ============================================================================
 # COMUNICAÇÃO COM OLLAMA
 # ============================================================================
-
 def verificar_ollama() -> bool:
+    """Verifica conectividade e autenticação usando o endpoint de modelos do WebUI."""
     try:
-        r = requests.get(TAGS_ENDPOINT, timeout=5)
+        r = requests.get(f"{API_URL_BASE}/v1/models", headers=HEADERS, timeout=5)
         return r.status_code == 200
-    except requests.ConnectionError:
+    except requests.RequestException:
         return False
 
 def obter_modelos_disponiveis() -> list[str]:
+    """Extrai a lista de modelos mapeados no servidor."""
     try:
-        r = requests.get(TAGS_ENDPOINT, timeout=5)
+        r = requests.get(f"{API_URL_BASE}/v1/models", headers=HEADERS, timeout=5)
+        r.raise_for_status()
         data = r.json()
-        return [m["name"] for m in data.get("models", [])]
+        # A API padrão OpenAI/WebUI retorna os modelos dentro de uma lista "data" na chave "id"
+        return [m.get("id") for m in data.get("data", [])]
     except Exception:
         return []
 
 def enviar_prompt(modelo: str, prompt: str) -> dict:
+    """Envia a requisição e formata a resposta no padrão esperado pelo script."""
     payload = {
         "model": modelo,
-        "prompt": prompt,
+        "messages": [{"role": "user", "content": prompt}],
         "stream": False,
+        "chat_id": "script_cli_automatizado" # Evita o erro 400 'NoneType' object has no attribute 'startswith'
     }
+    
     try:
-        r = requests.post(GENERATE_ENDPOINT, json=payload, timeout=30000)
+        # Cronometrando manualmente, pois a API do WebUI não devolve 'total_duration' em nanosegundos como o Ollama nativo
+        start_time = time.time()
+        
+        r = requests.post(f"{API_URL_BASE}/chat/completions", json=payload, headers=HEADERS, timeout=30000)
         r.raise_for_status()
+        
+        end_time = time.time()
+        total_duration_ns = int((end_time - start_time) * 1e9)
+        
         data = r.json()
+        resposta_texto = data["choices"][0]["message"]["content"]
+        
         return {
-            "resposta": data.get("response", ""),
+            "resposta": resposta_texto,
             "erro": None,
-            "tempo_total": data.get("total_duration", 0),
+            "tempo_total": total_duration_ns,
         }
+        
+    except requests.exceptions.HTTPError as err:
+        # Captura o log exato de recusa do servidor
+        error_detail = err.response.text if err.response else str(err)
+        return {"resposta": "", "erro": f"Erro do Servidor: {error_detail}", "tempo_total": 0}
     except requests.Timeout:
         return {"resposta": "", "erro": "Timeout na requisição", "tempo_total": 0}
     except requests.ConnectionError:
-        return {"resposta": "", "erro": "Erro de conexão com Ollama", "tempo_total": 0}
+        return {"resposta": "", "erro": "Falha de conexão com o túnel/servidor", "tempo_total": 0}
     except Exception as e:
-        return {"resposta": "", "erro": str(e), "tempo_total": 0}
+        return {"resposta": "", "erro": f"Erro interno: {str(e)}", "tempo_total": 0}
+    
 
 # ============================================================================
 # EXECUÇÃO DO LABORATÓRIO E GERAÇÃO DE RELATÓRIO
