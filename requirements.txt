@@ -1,6 +1,7 @@
 # Framework de Agentes e Modelos de IA
 agno==1.0.0
 groq==0.15.0
+anthropic==0.104.1
 
 # Comunicação HTTP (APIs e Ollama local)
 requests==2.32.3
