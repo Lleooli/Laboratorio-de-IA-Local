@@ -44,7 +44,9 @@ API_URL_BASE = "https://llmlab.gabrielbellagamba.online/api"
 # NAO SEI SE VAI FUNCIONAR GLOBAL PRA TODOS OU E POR USER!
 # AQUI TEM A DOC : https://docs.openwebui.com/features/authentication-access/api-keys/
 API_KEY = "sk-44c2f893d92841ad9676669517a6d110"
-DEFAULT_MODEL = "llama3.1:8b" # Confirme se o nome é este mesmo no painel
+# DEFAULT_MODEL = "llama3.1:8b" # ⬇️✅
+# DEFAULT_MODEL = "gemma4:e2b" # ⬇️✅
+DEFAULT_MODEL = "gemma4:e2b" 
 DELAY_ENTRE_REQUESTS = 2  # segundos
 
 HEADERS = {
@@ -450,7 +452,7 @@ def main():
     timestamp = data_hora_atual.strftime("%Y-%m-%d_%H-%M-%S")
 
     
-    caminho_relatorio = f"relatorio_api_bola_{timestamp}.md"
+    caminho_relatorio = f"../../relatorios/relatorio_api_bola_testecloud_{timestamp}.md"
     with open(caminho_relatorio, "w", encoding="utf-8") as f:
         f.write(gerar_relatorio_markdown(resultados, modelo))
         
