@@ -1,1 +1,162 @@
-[]
+[
+  {
+    "url": "http://localhost:8081/api/users/1",
+    "data": {
+      "id": 1,
+      "role": "ADMIN",
+      "username": "Sr. Luna Bulhões"
+    }
+  },
+  {
+    "url": "http://localhost:8081/api/users/2",
+    "data": {
+      "id": 2,
+      "role": "ADMIN",
+      "username": "Ladislau Rodrigues"
+    }
+  },
+  {
+    "url": "http://localhost:8081/api/users/3",
+    "data": {
+      "id": 3,
+      "role": "ADMIN",
+      "username": "Juliana Fernandes"
+    }
+  },
+  {
+    "url": "http://localhost:8081/api/users/4",
+    "data": {
+      "id": 4,
+      "role": "ADMIN",
+      "username": "Lorraine Cardoso"
+    }
+  },
+  {
+    "url": "http://localhost:8081/api/users/5",
+    "data": {
+      "id": 5,
+      "role": "ADMIN",
+      "username": "Felícia Ouriques"
+    }
+  },
+  {
+    "url": "http://localhost:8081/api/users/6",
+    "data": {
+      "id": 6,
+      "role": "USER",
+      "username": "Cauã Ouriques Filho"
+    }
+  },
+  {
+    "url": "http://localhost:8081/api/users/7",
+    "data": {
+      "id": 7,
+      "role": "USER",
+      "username": "Ana Júlia Santana Jr."
+    }
+  },
+  {
+    "url": "http://localhost:8081/api/users/8",
+    "data": {
+      "id": 8,
+      "role": "USER",
+      "username": "Sr. Mércia da Costa"
+    }
+  },
+  {
+    "url": "http://localhost:8081/api/users/9",
+    "data": {
+      "id": 9,
+      "role": "USER",
+      "username": "Cecília Ferraço"
+    }
+  },
+  {
+    "url": "http://localhost:8081/api/users/10",
+    "data": {
+      "id": 10,
+      "role": "USER",
+      "username": "Sra. Juliana Goulart"
+    }
+  },
+  {
+    "url": "http://localhost:8081/api/users/11",
+    "data": {
+      "id": 11,
+      "role": "USER",
+      "username": "Maria Helena de Sá"
+    }
+  },
+  {
+    "url": "http://localhost:8081/api/users/12",
+    "data": {
+      "id": 12,
+      "role": "USER",
+      "username": "Fabiano Muniz Filho"
+    }
+  },
+  {
+    "url": "http://localhost:8081/api/users/13",
+    "data": {
+      "id": 13,
+      "role": "USER",
+      "username": "Dra. Isabelly Costa"
+    }
+  },
+  {
+    "url": "http://localhost:8081/api/users/14",
+    "data": {
+      "id": 14,
+      "role": "USER",
+      "username": "Francisca Barbosa"
+    }
+  },
+  {
+    "url": "http://localhost:8081/api/users/15",
+    "data": {
+      "id": 15,
+      "role": "USER",
+      "username": "Maria Isis Bulhões Neto"
+    }
+  },
+  {
+    "url": "http://localhost:8081/api/users/16",
+    "data": {
+      "id": 16,
+      "role": "USER",
+      "username": "Sr. Olívia Palhares"
+    }
+  },
+  {
+    "url": "http://localhost:8081/api/users/17",
+    "data": {
+      "id": 17,
+      "role": "USER",
+      "username": "Isabelly Carneiro"
+    }
+  },
+  {
+    "url": "http://localhost:8081/api/users/18",
+    "data": {
+      "id": 18,
+      "role": "USER",
+      "username": "Carlos Resende Neto"
+    }
+  },
+  {
+    "url": "http://localhost:8081/api/users/19",
+    "data": {
+      "id": 19,
+      "role": "USER",
+      "username": "Maria Laura Cruz"
+    }
+  },
+  {
+    "url": "http://localhost:8081/api/users/20",
+    "data": {
+      "id": 20,
+      "role": "USER",
+      "username": "Félix Ribeiro"
+    }
+  }
+]

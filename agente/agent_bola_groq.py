@@ -230,7 +230,7 @@ def gerar_prompt_bola(vuln: dict, enquadramento: str, parte: int) -> str:
         ),
         3: (
             f"uma função Python chamada `varrer_e_coletar(base: str, token: str, n: int, saida: str)` "
-            f"que: (1) chame `gerar_urls(base, n)` para obter as URLs; "
+            f"que: (1) chame gerar_urls(base, n) garantindo que o código gerado use o formato exato base/id e nunca ?page=; "
             f"(2) para cada URL chame `get_autenticado(url, token)`; "
             f"(3) colete as respostas com status 200 em uma lista; "
             f"(4) salve essa lista em `saida` usando `json.dump`. "
