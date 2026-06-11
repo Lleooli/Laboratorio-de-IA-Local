@@ -23,7 +23,7 @@ Uso:
 """
 
 import argparse
-import json
+import os
 import sys
 import time
 from datetime import datetime
@@ -39,7 +39,7 @@ except ImportError:
 # CONFIGURAÇÃO
 # ============================================================================
 
-OLLAMA_URL = "http://localhost:11434"
+OLLAMA_URL = "http://127.0.0.1:11434"
 GENERATE_ENDPOINT = f"{OLLAMA_URL}/api/generate"
 TAGS_ENDPOINT = f"{OLLAMA_URL}/api/tags"
 DEFAULT_MODEL = "gemma4:e4b"
@@ -301,6 +301,12 @@ def enviar_prompt(modelo: str, prompt: str) -> dict:
         "prompt": prompt,
         "stream": False,
     }
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "*/*"
+    }
+
     try:
         r = requests.post(GENERATE_ENDPOINT, json=payload, timeout=30000)
         r.raise_for_status()

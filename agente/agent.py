@@ -1,6 +1,6 @@
 from agno.agent import Agent
-from agno.models.groq import Groq
-from agno.tools.file import FileTools
+from agno.models.ollama import Ollama
+
 from dotenv import load_dotenv
 from agno.tools import tool
 import requests
@@ -10,9 +10,7 @@ import subprocess
 import tempfile
 from textwrap import dedent
 
-import argparse
-import json
-import sys
+
 import time
 from datetime import datetime
 
@@ -109,7 +107,7 @@ def fazer_pedido(url: str, token_jwt: str = "") -> str:
 '''
 
 coder_agent = Agent(
-    model=Groq(id="llama-3.3-70b-versatile"),
+    model=Ollama(id="gemma2:2b"),
     description="Você é um assistente de Red Team especializado em Python.",
     instructions=[
         "Gere o código Python funcional e completo dentro de um bloco de código Markdown (começando com ```python e terminando com ```).",
