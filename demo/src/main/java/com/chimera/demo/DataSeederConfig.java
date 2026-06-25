@@ -27,6 +27,18 @@ public class DataSeederConfig {
             }
 
             System.out.println("Iniciando geração de dados sintéticos em MASSA...");
+
+            // Usuário fixo para testes (sempre presente, independente do Faker)
+            User testUser = new User();
+            testUser.setUsername("alice");
+            testUser.setRole("USER");
+            userRepository.save(testUser);
+
+            User testAdmin = new User();
+            testAdmin.setUsername("admin");
+            testAdmin.setRole("ADMIN");
+            userRepository.save(testAdmin);
+
             Faker faker = new Faker(new Locale("pt", "BR"));
 
             // Parâmetros de escala

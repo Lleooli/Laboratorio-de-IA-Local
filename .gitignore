@@ -37,3 +37,12 @@ build/
 __pycache__/
 *.pyc
 
+# Logs de execução do agente
+agente_output.log
+agente_error.log
+api_output.log
+
+# Outputs temporários do exploit (gerados na pasta raiz ao executar o script diretamente)
+users_bola.json
+documents_bola.json
+
