@@ -1,0 +1,73 @@
+Metodologia Prática: Laboratório de IA Local (Ollama)
+Ao longo do semestre, os alunos utilizarão o Ollama rodando modelos de linguagem pequenos (ex: Llama 3 8B, Mistral, ou Phi-3) em máquinas locais. Isso permitirá a realização de testes de "caixa-preta" (black-box)
+ e a exploração de vulnerabilidades de forma segura, controlada e sem custos de API, aplicando na prática os conceitos teóricos de cada semana.
+
+--------------------------------------------------------------------------------
+Mês 1: Fundamentos, Ameaças e Jailbreaks Baseados em Contexto
+Neste mês, os alunos entenderão como contornar as regras codificadas nas camadas de segurança
+ e usarão o modelo local para testar manipulações semânticas simples.
+Semana 1: Introdução ao AI Jailbreaking e Configuração do Laboratório
+Teoria: O que é o AI jailbreaking, objetivos dos atacantes e impactos nos negócios (como violações de conformidade e danos à marca)
+.
+Prática (Ollama): Instalação do Ollama, download de um modelo pequeno e testes de linha de base com prompts maliciosos diretos para observar as restrições padrão do modelo.
+Semana 2: Manipulação de Contexto e Ataques de Roleplay (Interpretação de Papéis)
+Teoria: Como a técnica DAN (Do Anything Now) força o modelo a assumir uma identidade fictícia (ex: "modo de desenvolvedor"), fazendo com que ele abandone seus protocolos de segurança para manter a coerência da narrativa
+.
+Prática (Ollama): Criação e teste de prompts de Roleplay e Persuasive Adversarial Prompts (PAP), onde pedidos prejudiciais são disfarçados de pesquisas acadêmicas legítimas
+.
+Semana 3: Evasão, Ofuscação e Manipulação de Tokens
+Teoria: O uso de Contrabando de Tokens (quebrar palavras sensíveis em fragmentos como "exp losiv es"), caracteres Unicode, e ataques de Arte ASCII, que exploram a diferença entre a percepção visual humana e o processamento da máquina
+.
+Prática (Ollama): Enviar comandos fragmentados, encodados em Base64 ou formatados em ASCII para o modelo local e analisar como o tokenizador os reconstrói durante a geração da resposta
+.
+Semana 4: Vazamento de Sistema e Exploração de Funções
+Teoria: Técnicas para extrair os prompts do sistema (System Prompt Leakage) que guiam o comportamento do modelo, revelando sua arquitetura e fraquezas
+.
+Prática (Ollama): Tentativas de extração do prompt de sistema padrão do modelo local utilizando técnicas de meta-prompting e engenharia conversacional
+.
+Mês 2: Ataques Avançados, Automação e Sobrecarga
+Foco em vetores de ataque técnicos e no uso de ferramentas automatizadas contra o modelo local.
+Semana 1: Caos de Tokenização e Cegueira Linguística
+Teoria: Adição de sufixos adversariais (ruído cognitivo como \n\n{.} ~!^ <|/|> ##) para desestabilizar os filtros
+ e o uso de Trojans Multilíngues (tradução de ataques para idiomas com poucos recursos de treinamento de segurança, como Suaíli)
+.
+Prática (Ollama): Testar se o modelo local é suscetível a strings de caracteres aleatórios inseridas no final do prompt e traduzir prompts de ataque para idiomas incomuns para verificar o aumento da taxa de sucesso
+.
+Semana 2: Ataques Multi-Modais e Sobrecarga Cognitiva
+Teoria: A inundação do modelo com cenários complexos e múltiplos dilemas morais inter-relacionados (Sobrecarga Cognitiva) para comprometer sua capacidade de manter limites éticos
+.
+Prática (Ollama): Criação de prompts gigantescos com múltiplas regras contraditórias para esgotar a capacidade de raciocínio do modelo local e forçar um comportamento não intencional
+.
+Semana 3: Automação de Jailbreaks e Vírus Evolutivos
+Teoria: O uso de algoritmos genéticos para evoluir prompts de jailbreak
+ e a introdução a sistemas de ataque em cadeia (Automated Chain Attack Systems)
+.
+Prática (Ollama): Configurar um script em Python utilizando ferramentas como PAIR (Prompt Automatic Iterative Refinement) ou AutoDAN. O PAIR usa um modelo atacante para refinar iterativamente as tentativas e pode alcançar sucesso contra o modelo alvo em menos de 20 consultas usando apenas acesso black-box
+.
+Semana 4: Ameaças à Infraestrutura e Redes de Agentes
+Teoria: Envenenamento de datasets em larga escala (Dataset Poisoning) introduzindo vieses sutis
+ e o comprometimento multi-agente, onde comportamentos não autorizados se propagam por canais de colaboração
+.
+Mês 3: Defesa, Red Teaming e Segurança Integrada
+Os alunos passarão da postura ofensiva para a defensiva, aprendendo a proteger as interações com a IA local.
+Semana 1: Controles Fundamentais e Arquitetura de Defesa
+Teoria: Estratégias de defesa em profundidade, como validação de prompts (prompt validation), filtragem de saída e controle de contexto para reduzir a superfície de ataque
+.
+Prática (Ollama): Desenvolver um middleware (ex: em Python/Flask) entre o usuário e o Ollama que intercepte os prompts, filtre palavras-chave fragmentadas e bloqueie tentativas de contrabando de tokens conhecidas
+.
+Semana 2: Detecção Dinâmica e Camadas de Alinhamento
+Teoria: Implementação de sistemas de detecção de anomalias para monitorar padrões suspeitos em tempo real
+ e como grandes provedores aplicam treinamento adversarial com perturbações de ruído
+.
+Prática (Ollama): Criar um sistema simples de log e detecção de anomalias que monitore tentativas repetidas de quebra de regras (ex: identificar quando os usuários escalam privilégios) no laboratório local
+.
+Semana 3: AI Red Teaming (Testes Ofensivos Estruturados)
+Teoria: A prática do Red Teaming em IA: testes de estresse proativos para identificar vulnerabilidades através de simulações em ambiente controlado
+.
+Prática (Ollama): Dividir a turma em equipes "Red" (atacantes) e "Blue" (defensores). A equipe Blue implementará filtros de segurança no Ollama e a equipe Red usará todas as técnicas aprendidas (DAN, PAIR, etc.) para tentar ultrapassá-los
+.
+Semana 4: Governança de IA e DevSecOps
+Teoria: Como integrar o Red Teaming e as defesas aos fluxos de trabalho DevSecOps, e o uso de "AI BoM" (Bill of Materials) para rastrear dependências de modelos
+.
+Prática (Ollama): Revisão de código, documentação das vulnerabilidades encontradas no modelo local ao longo do semestre e elaboração de um relatório final de mitigação baseada nas descobertas
+.

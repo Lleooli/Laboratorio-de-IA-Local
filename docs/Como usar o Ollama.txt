@@ -1,0 +1,58 @@
+========================================
+   COMO USAR O OLLAMA - GUIA RAPIDO
+========================================
+
+MODELO INSTALADO: gemma2:2b (1.6 GB)
+
+----------------------------------------
+COMANDOS BASICOS
+----------------------------------------
+
+1. Iniciar um chat com o modelo:
+   ollama run gemma2:2b
+
+2. Para sair do chat:
+   /bye
+
+3. Ver modelos instalados:
+   ollama list
+
+4. Baixar outro modelo:
+   ollama pull <nome-do-modelo>
+
+5. Remover um modelo:
+   ollama rm <nome-do-modelo>
+
+----------------------------------------
+API LOCAL
+----------------------------------------
+
+O Ollama roda um servidor local na porta 11434.
+Voce pode fazer requisicoes assim:
+
+   curl http://localhost:11434/api/generate -d "{\"model\": \"gemma2:2b\", \"prompt\": \"Sua pergunta aqui\"}"
+
+----------------------------------------
+OUTROS MODELOS LEVES
+----------------------------------------
+
+- gemma3:1b       (~1B parametros)
+- gemma2:2b       (~2B parametros) << instalado
+- phi3:mini        (~3.8B parametros)
+- llama3.2:1b     (~1B parametros)
+- llama3.2:3b     (~3B parametros)
+
+Para instalar qualquer um: ollama pull <nome>
+
+----------------------------------------
+DICAS
+----------------------------------------
+
+- O Ollama precisa estar rodando em segundo plano.
+  Se nao estiver, abra o app Ollama ou rode: ollama serve
+
+- Para usar em apps como Open WebUI, configure
+  a URL: http://localhost:11434
+
+- Quanto menor o modelo, mais rapido ele responde,
+  mas com menor qualidade nas respostas.
